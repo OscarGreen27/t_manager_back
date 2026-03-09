@@ -1,23 +1,24 @@
 import { Module } from '@nestjs/common';
 import { UserModule } from './user/user.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import databaseConfig from 'conf/database.config';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ load: [databaseConfig], isGlobal: true }),
     TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: configService.get<number>('DB_PORT', 5432),
-        username: configService.get('DB_USER', 'postgres'),
-        password: configService.get('DB_PASS', 'strong_pass'),
-        database: configService.get('DB_NAME', 'public'),
-        autoLoadEntities: true,
-        synchronize: false,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const databaseConfig =
+          configService.get<TypeOrmModuleOptions>('database');
+        if (!databaseConfig) {
+          throw new Error('Database config is not define');
+        }
+
+        return databaseConfig;
+      },
     }),
     UserModule,
   ],
